@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vite'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import viteReact from '@vitejs/plugin-react'
@@ -15,6 +16,9 @@ const config = defineConfig({
     tanstackStart(),
     viteReact(),
   ],
+  test: {
+    environment: 'jsdom',
+  },
 })
 
 export default config

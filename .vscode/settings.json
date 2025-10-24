@@ -7,20 +7,5 @@
   },
   "files.readonlyInclude": {
     "**/routeTree.gen.ts": true
-  },
-  "[javascript][typescript]": {
-    "editor.defaultFormatter": "biomejs.biome"
-  },
-  "[javascriptreact][typescriptreact]": {
-    "editor.defaultFormatter": "biomejs.biome"
-  },
-  "[json][jsonc]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  },
-  "[css]": {
-    "editor.defaultFormatter": "biomejs.biome"
-  },
-  "editor.codeActionsOnSave": {
-    "source.organizeImports.biome": "explicit"
   }
 }

@@ -64,18 +64,6 @@ interface ProcessData {
 function process(data: ProcessData) {}
 ```
 
-**Lossless Type Propagation**:
-
-- Design APIs that maintain type information through the entire chain
-- Use generics extensively to preserve type context
-- Define context interfaces at route level and inherit downward
-
-**Contextual Typing**:
-
-- Define route context interfaces explicitly
-- Let type inference work through nested routes
-- Leverage TypeScript's contextual typing in callbacks
-
 ---
 
 ## File Structure & Organization
@@ -92,16 +80,10 @@ src/
 │       ├── .index.tsx        # Route: /nested/ (pathless layout)
 │       └── route.tsx         # Route: /nested/route
 ├── components/               # Reusable UI components
-│   ├── Header.tsx
+│   ├── header.tsx
 │   └── ui/                   # Shadcn UI & design system
-├── integrations/             # External service integrations
-│   └── tanstack-query/       # React Query configuration
 ├── hooks/                    # Custom React hooks
 ├── lib/                      # Utility functions & helpers
-│   ├── utils.ts
-│   └── classname.ts
-├── data/                     # Static data & constants
-├── types/                    # Shared type definitions
 ├── router.tsx                # Router configuration
 ├── routeTree.gen.ts          # Auto-generated route tree (don't edit)
 └── styles.css                # Global Tailwind styles
@@ -124,39 +106,6 @@ src/
 - **Dynamic segments**: Use `$` prefix
   - `$userId.tsx` → `/users/:userId`
   - `posts.$postId.edit.tsx` → `/posts/:postId/edit`
-
-### Import Organization (Biome Rules)
-
-Follow the Biome import sorting order:
-
-1. Node/Bun built-ins (`:NODE:`, `:BUN:`)
-2. URL imports and package protocols
-3. React, TanStack, and other framework imports
-4. Other npm packages
-5. **Blank line**
-6. Path aliases (`@/*`)
-7. **Blank line**
-8. Type definitions
-9. Relative imports
-
-```typescript
-// Built-ins
-import fs from "node:fs";
-
-// Framework & TanStack
-import { createFileRoute } from "@tanstack/react-router";
-import { createServerFn } from "@tanstack/react-start";
-import React from "react";
-
-// Other packages
-import { Button } from "@radix-ui/react-button";
-
-// Aliases
-import { cn } from "@/lib/utils";
-
-// Relative
-import { Header } from "../components/Header";
-```
 
 ---
 
@@ -184,44 +133,6 @@ import { Header } from "../components/Header";
 - Inherit context down the route tree
 - Share data through route loaders
 
-### Root Route Pattern
-
-```typescript
-// __root.tsx - Root layout with context
-import { createRootRouteWithContext, HeadContent, Scripts } from "@tanstack/react-router";
-import type { QueryClient } from "@tanstack/react-query";
-
-interface MyRouterContext {
-  queryClient: QueryClient;
-}
-
-export const Route = createRootRouteWithContext<MyRouterContext>()({
-  head: () => ({
-    meta: [
-      { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "My App" },
-    ],
-    links: [{ rel: "stylesheet", href: styles }],
-  }),
-  shellComponent: RootDocument,
-});
-
-function RootDocument({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  );
-}
-```
-
 ### File-Based Route Pattern
 
 ```typescript
@@ -229,12 +140,13 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/page-name")({
-  component: PageComponent,
   // Optional: Add loader for data fetching
   loader: async () => {
     // Fetch data server-side
     return { data: "value" };
   },
+  // Component
+  component: PageComponent,
 });
 
 function PageComponent() {
@@ -313,26 +225,6 @@ function PostsPage() {
 }
 ```
 
-### Loader-Based Data Fetching
-
-- Use route loaders for data requirements
-- Leverage structural sharing for caching
-- Combine with React Query for advanced state management
-- Allow parallel loading of route data
-
-```typescript
-export const Route = createFileRoute("/dashboard")({
-  loader: async ({ context: { queryClient } }) => {
-    return {
-      stats: await queryClient.ensureQueryData({
-        queryKey: ["stats"],
-        queryFn: () => fetch("/api/stats").then((r) => r.json()),
-      }),
-    };
-  },
-});
-```
-
 ---
 
 ## TanStack Start Patterns
@@ -348,7 +240,7 @@ export const Route = createFileRoute("/dashboard")({
 import { createServerFn } from "@tanstack/react-start";
 
 // Define server function with input validation
-export const fetchUserData = createServerFn({
+export const fetchUserDataFn = createServerFn({
   method: "GET", // GET, POST, etc.
 })
   .inputValidator((d: string) => d) // Optional: validate input
@@ -358,29 +250,12 @@ export const fetchUserData = createServerFn({
   });
 ```
 
-**Usage from Client**:
-
-```typescript
-function UserComponent() {
-  const data = await fetchUserData({ data: "userId123" });
-  return <div>{data.user}</div>;
-}
-```
-
-**Features**:
-
-- Automatic serialization/deserialization
-- End-to-end type safety
-- Streaming support for progressive data loading
-- Optional input validation with validators
-- Middleware support (for logging, auth, etc.)
-
 ### Server Function Examples
 
 **Simple Getter**:
 
 ```typescript
-const getTodos = createServerFn({
+const getTodosFn = createServerFn({
   method: "GET",
 }).handler(async () => {
   const todos = await readTodosFromFile("todos.json");
@@ -391,7 +266,7 @@ const getTodos = createServerFn({
 **POST with Input Validation**:
 
 ```typescript
-const addTodo = createServerFn({ method: "POST" })
+const addTodoFn = createServerFn({ method: "POST" })
   .inputValidator((d: string) => d) // Simple string validator
   .handler(async ({ data }) => {
     const todos = await readTodos();
@@ -411,7 +286,7 @@ const CreateTodoInput = z.object({
   description: z.string().optional(),
 });
 
-const createTodo = createServerFn({ method: "POST" })
+const createTodoFn = createServerFn({ method: "POST" })
   .inputValidator((d) => CreateTodoInput.parse(d))
   .handler(async ({ data }) => {
     // data is typed as CreateTodoInput
@@ -428,13 +303,13 @@ const createTodo = createServerFn({ method: "POST" })
 // routes/api.users.ts
 import { createServerFn } from "@tanstack/react-start";
 
-export const getUsers = createServerFn({
+export const getUsersFn = createServerFn({
   method: "GET",
 }).handler(async () => {
   return await db.users.findAll();
 });
 
-export const createUser = createServerFn({
+export const createUserFn = createServerFn({
   method: "POST",
 })
   .inputValidator((d) => UserSchema.parse(d))
@@ -468,7 +343,7 @@ function Dashboard() {
 Server functions support streaming for progressive data loading:
 
 ```typescript
-export const streamData = createServerFn({
+export const streamDataFn = createServerFn({
   method: "GET",
 }).handler(async function* () {
   // Generator function for streaming
@@ -493,12 +368,12 @@ export const streamData = createServerFn({
 
 ### Functions & Variables
 
-**Server Functions** (PascalCase with verb):
+**Server Functions** (PascalCase with verb ending with `Fn`):
 
-- `fetchUserData()` - retrieves data
-- `createTodo()` - creates resource
-- `updateProfile()` - modifies resource
-- `deleteTodo()` - removes resource
+- `fetchUserDataFn()` - retrieves data
+- `createTodoFn()` - creates resource
+- `updateProfileFn()` - modifies resource
+- `deleteTodoFn()` - removes resource
 
 **Hooks** (camelCase with 'use' prefix):
 
@@ -519,6 +394,10 @@ export const streamData = createServerFn({
 - `interface UserProfile`
 - `type SearchParams`
 - `interface RouteContext`
+
+**Zod schemas** (camelCase)
+
+- `userSchema`
 
 ### Constants & Enums
 
@@ -542,14 +421,6 @@ enum UserRole {
 ### Linting & Formatting (Biome)
 
 The project uses Biome v2 for linting and code formatting. Configuration in `biome.json`:
-
-**Linter Rules**:
-
-- `recommended`: All recommended rules enabled
-- Nursery rules: Additional experimental rules with warnings
-  - `useSortedClasses`: Sort Tailwind classes
-  - `useExhaustiveSwitchCases`: Exhaustive switch statement checking
-  - `noFloatingPromises`: Catch unhandled promises
 
 **Style Rules (Errors)**:
 
@@ -619,7 +490,7 @@ import { cn } from '@/lib/utils'
 **Server Functions**:
 
 ```typescript
-export const riskyOperation = createServerFn({
+export const riskyOperationFn = createServerFn({
   method: "POST",
 })
   .inputValidator((d) => InputSchema.parse(d))
@@ -644,21 +515,6 @@ export const riskyOperation = createServerFn({
 
 ## Common Patterns
 
-### Authentication Context in Routes
-
-```typescript
-// __root.tsx
-interface MyRouterContext {
-  queryClient: QueryClient;
-  user: User | null;
-  isAuthenticated: boolean;
-}
-
-export const Route = createRootRouteWithContext<MyRouterContext>()({
-  /* ... */
-});
-```
-
 ### Protected Routes
 
 ```typescript
@@ -673,36 +529,6 @@ export const Route = createFileRoute("/protected")({
 });
 ```
 
-### Data Loading with React Query
-
-```typescript
-import { useQuery } from "@tanstack/react-query";
-
-export const Route = createFileRoute("/users")({
-  loader: async ({ context: { queryClient } }) => {
-    // Ensure data is loaded before rendering
-    return {
-      users: await queryClient.ensureQueryData({
-        queryKey: ["users"],
-        queryFn: () => fetch("/api/users").then((r) => r.json()),
-      }),
-    };
-  },
-  component: UsersList,
-});
-
-function UsersList() {
-  const { users } = Route.useLoaderData();
-  return (
-    <div>
-      {users.map((u) => (
-        <div key={u.id}>{u.name}</div>
-      ))}
-    </div>
-  );
-}
-```
-
 ### Form Handling with React Form + Zod
 
 ```typescript
@@ -710,7 +536,7 @@ import { useForm } from "@tanstack/react-form";
 import { zodValidator } from "@tanstack/zod-form-adapter";
 import { z } from "zod";
 
-const FormSchema = z.object({
+const formSchema = z.object({
   email: z.string().email(),
   name: z.string().min(1),
 });
@@ -722,7 +548,7 @@ function MyForm() {
       const result = await createUser(value);
       return result;
     },
-    validators: { onChange: zodValidator({ schema: FormSchema }) },
+    validators: { onChange: zodValidator({ schema: formSchema }) },
   });
 
   return (
@@ -750,14 +576,14 @@ function MyForm() {
 ### Search Parameter Management
 
 ```typescript
-const SearchSchema = z.object({
+const searchSchema = z.object({
   query: z.string().default(""),
   page: z.number().default(1),
   category: z.string().optional(),
 });
 
 export const Route = createFileRoute("/search")({
-  validateSearch: SearchSchema,
+  validateSearch: searchSchema,
   component: SearchPage,
 });
 
